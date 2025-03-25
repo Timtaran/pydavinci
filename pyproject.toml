@@ -7,7 +7,7 @@ name = "pydavinci"
 version = "0.3.1"
 description = "A lightly opinionated DaVinci Resolve Python API wrapper"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
     { name = "Caleb Trevatt", email = "sk188okj@duck.com" },
