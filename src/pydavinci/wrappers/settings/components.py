@@ -5,7 +5,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Type, Union
 
-from pydantic import BaseModel, DirectoryPath, Field, validator
+from pydantic import BaseModel, DirectoryPath, Field, field_validator
 from typing_extensions import Literal
 
 import pydavinci.wrappers.settings.map as map
