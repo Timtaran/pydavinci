@@ -406,15 +406,15 @@ class CommonMonitor(BaseConfig):
 
 
 class CommonSettings(BaseConfig):
-
     super_scale: Literal["auto", "no_scaling", "2x", "3x", "4x"] = Field(alias="superScale")
     video_data_levels: Literal["Video", "Full"] = Field(alias="videoDataLevels")
     video_data_levels_retain_subblock_and_super_white_data: bool = Field(
         alias="videoDataLevelsRetainSubblockAndSuperWhiteData"
     )
 
-    @validator("super_scale")  # type: ignore
-    def superscale_validator(cls: Type["BaseModel"], value: Union[int, str], field: "ModelField") -> Optional[Union[str, int]]:  # type: ignore
+    @field_validator("super_scale", mode="before")
+    @classmethod
+    def superscale_validator(cls, value: Union[int, str]) -> Optional[Union[str, int]]:
         return map.super_scale_transform(value)
 
 
