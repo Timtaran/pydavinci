@@ -234,7 +234,7 @@ class Perf(BaseConfig):
     ] = Field(alias="perfRenderCacheCodec")
     render_cache_mode: Literal["user", "smart", "none"] = Field(alias="perfRenderCacheMode")
 
-    @validator("proxy_media_mode")  # type: ignore
+    @field_validator("proxy_media_mode")  # type: ignore
     def proxy_validator(cls: Type["BaseModel"], value: str, field: "ModelField") -> str | None:  # type: ignore
         return map.perf_proxy_media_transform(value) if value else None
 

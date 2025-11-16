@@ -5,22 +5,19 @@ def load_fusionscript():  # type: ignore
 
     def load_dynamic(module_name, file_path):
         if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
-            import importlib.machinery
             import importlib.util
 
             module = None
-            spec = None
-            loader = importlib.machinery.ExtensionFileLoader(module_name, file_path)
-            if loader:
-                spec = importlib.util.spec_from_loader(module_name, loader)
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
             if spec:
                 module = importlib.util.module_from_spec(spec)
             if module:
-                loader.exec_module(module)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
             return module
         else:
-            import imp # type: ignore
-            return imp.load_dynamic(module_name, file_path)
+            import imp
+            return imp.load_source(module_name, file_path)
 
     WIN_ENV_VARIABLES = {
         "RESOLVE_SCRIPT_API": r"%PROGRAMDATA%\Blackmagic Design\DaVinciResolve\Support\Developer\Scripting",
