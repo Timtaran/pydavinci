@@ -1,85 +1,47 @@
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
-import pydantic.main
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, FieldValidationInfo, model_validator
 
 import pydavinci.logger as log
-from pydavinci.wrappers.settings.map import (
-    SETTINGS_MAP,
-    perf_proxy_media_transform,
-    super_scale_transform,
-)
-
-if TYPE_CHECKING:
-    from pydantic.fields import ModelField
-
-
-# monkey patch to get underscore fields
-def is_valid_field(name: str) -> Optional[bool]:
-    if not name.startswith("__"):
-        return True
-    elif name == "__root__":
-        return True
-    return None
-
-
-pydantic.main.is_valid_field = is_valid_field  # type: ignore
+from pydavinci.wrappers.settings.map import SETTINGS_MAP, super_scale_transform
 
 _ANY = Optional[Union[str, int, bool]]
 
 
 class BaseConfig(BaseModel):  # type: ignore
-    @validator("*", pre=True)  # type: ignore
-    def str_none_to_none(cls: "BaseModel", value: _ANY) -> _ANY:  # noqa: B902
+    @field_validator("*", mode="before")
+    def str_none_to_none(cls, value: _ANY) -> _ANY:  # noqa: B902
         # Special case here before everything
         # There are some "None" strings in the data. We want to alter them to the Python None
         # so Pydantic understands it
-        log.debug(f"pre root validator called = {value}")
         if value == "None" or value == "":
             return None
         return value
 
-    @validator("*")  # type: ignore
-    def set_prop_validator(
-        cls: "BaseModel", v: _ANY, values: Dict[_ANY, _ANY], field: "ModelField"  # noqa: B902
-    ) -> _ANY:
+    @model_validator(mode="after")
+    def set_prop_validator(cls, values: "BaseConfig") -> "BaseConfig":
         # This is called on all values assignment
-        log.debug("root validator called")
-        return resolve_transform(cls, v, values, field)
+        if not getattr(values, "_selfvalidate", False):
+            log.debug("Not sending to Resolve yet.")
+            return values
+
+        # Here we check if it's superscale, which needs a different transform from/to Resolve
+        # we also check if _selfvalidate is False, if it is, it means we're initializing the
+        # class and then we just return the value.
+
+        # If _selfvalidate is True, we then see what transform we need to use
+        # in the map.py file, which has a dict of the Fields' Aliases to which callable they need to pass through
+        # We then pass to the Resolve API the Alias with the right transform function applied
+        for field_name, field_value in values.__dict__.items():
+            if field_name in SETTINGS_MAP:
+                log.debug(f"Setting '{field_name}' to {field_value}")
+                call: Callable[[Any], Any] = SETTINGS_MAP[field_name]
+                getattr(values, "_obj").SetSetting(field_name, call(field_value))
+
+        return values
 
     class Config:
         extra = "forbid"
         validate_assignment = True
         allow_population_by_field_name = True
         underscore_attrs_are_private = False
-
-
-def resolve_transform(
-    cls: "BaseModel", value: _ANY, values: Dict[_ANY, _ANY], field: "ModelField"
-) -> _ANY:
-    # Here we check if it's superscale, which needs a different transform from/to Resolve
-    # we also check if _selfvalidate is False, if it is, it means we're initializing the
-    # class and then we just return the value.
-
-    # If _selfvalidate is True, we then see what transform we need to use
-    # in the map.py file, which has a dict of the Fields' Aliases to which callable they need to pass through
-    # We then pass to the Resolve API the Alias with the right transform function applied
-    log.debug("resolve_transform called")
-
-    if not values.get("_selfvalidate"):
-        log.debug(f"Not sending to Resolve yet. Parsing {field.alias}")
-        return value
-
-    if field.alias == "superScale":
-        value = super_scale_transform(value)  # type: ignore
-
-    if field.alias == "perfProxyMediaMode":
-        value = perf_proxy_media_transform(value)  # type: ignore
-
-    if values["_selfvalidate"]:
-        log.debug(f"Setting '{field.alias}' to {value}")
-        call: Callable[[_ANY], _ANY] = SETTINGS_MAP[field.alias]  # type: ignore
-        values["_obj"].SetSetting(field.alias, call(value))  # type: ignore
-        return value
-
-    return value

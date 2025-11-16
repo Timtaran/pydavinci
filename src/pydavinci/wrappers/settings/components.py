@@ -5,7 +5,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Type, Union
 
-from pydantic import BaseModel, DirectoryPath, Field, validator
+from pydantic import BaseModel, DirectoryPath, Field, field_validator
 from typing_extensions import Literal
 
 import pydavinci.wrappers.settings.map as map
@@ -416,8 +416,9 @@ class CommonSettings(BaseConfig):
         alias="videoDataLevelsRetainSubblockAndSuperWhiteData"
     )
 
-    @validator("super_scale")  # type: ignore
-    def superscale_validator(cls: Type["BaseModel"], value: int | str, field: "ModelField") -> str | int | None:  # type: ignore
+    @field_validator("super_scale", mode="before")
+    @classmethod
+    def superscale_validator(cls, value: Union[int, str]) -> Optional[Union[str, int]]:
         return map.super_scale_transform(value)
 
 
